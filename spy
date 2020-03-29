@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+# encoding: utf-8
+"""
+spy
+spy is to py as sed is to ed
+In practice it's kinda awk-y, only better because python's an actual
+programming language
+"""
+
+import sys
+
+def parseArgs(argv):
+    args = {
+        'init': [''],
+        'cmd': [''],
+        'end': [''],
+        'err': True,
+    }
+    pr = True
+    state = 'cmd'
+
+    for arg in argv:
+        arg = arg.strip()
+        if arg.startswith('-'):
+            larg = arg.lower()
+            if larg in ('-h', '--help'):
+                print('insert helptext here')
+                exit(0)
+            if larg in ('-i', '--init'):
+                state = 'init'
+                args['init'].append('')
+                continue
+            elif larg in ('-c', '--cmd', '--command'):
+                state = 'cmd'
+                args['cmd'].append('')
+                continue
+            elif larg in ('-e', '--end'):
+                state = 'end'
+                args['end'].append('')
+                continue
+            elif larg in ('-r', '--err', '--error'):
+                args['err'] = False; continue
+            elif larg == '-n':
+                pr = False; continue
+        if ';' in arg:
+            parts = arg.split(';')
+            args[state][-1] += parts[0]
+            args[state].extend((p for p in parts[1:] if p))
+        args[state][-1] += arg
+
+    if pr and not any('print' in cmd for cmd in args['cmd']):
+        args['cmd'][-1] = 'print(%s)' % args['cmd'][-1]
+
+    return args
+
+if __name__ == '__main__':
+    # Don't use a `main()` so vars from `eval` become global
+    args = parseArgs(sys.argv[1:])
+
+    for arg in args['init']:
+        exec(arg)
+
+    for line in sys.stdin:
+        i = line
+        try:
+            for arg in args['cmd']:
+                exec(arg)
+        except:
+            if args['err']:
+                raise
+
+    for arg in args['end']:
+        exec(arg)
